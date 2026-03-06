@@ -181,7 +181,7 @@
     }
 
     async function loadCSV(){
-      const resp = await fetch('../data/hks_buttons_new.csv');
+      const resp = await fetch('data/hks_buttons_new.csv');
       const text = await resp.text();
       const parsed = Papa.parse(text,{ header:true, skipEmptyLines:true });
       const byImage = {};
