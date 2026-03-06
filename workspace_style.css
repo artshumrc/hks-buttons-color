@@ -232,6 +232,7 @@
   overflow: hidden;
   height: auto;
   user-select: none;
+  flex-grow: 1;
 }
 
 .workspace span, #workspacelabel span {
@@ -242,6 +243,7 @@
     color: #31302e;
     position:absolute;
     line-height:1;
+    margin-top: -200px;
  }
 
     .workspace.fullscreen {
@@ -252,6 +254,16 @@
       height: 100vh;
       z-index: 9999;
     }
+
+    /* Hide the toggle button when the workspace container is in fullscreen */
+    #workspaceContainer:fullscreen #toggleTopBar,
+    #workspaceContainer:-webkit-full-screen #toggleTopBar,
+    .workspace:fullscreen #toggleTopBar,
+     .workspace:-webkit-full-screen #toggleTopBar {
+      display: none;
+    }
+
+
     .workspace-card {
       text-align: center;
       cursor: grab;
@@ -271,11 +283,15 @@
 
 
 
-    /* Collapsed sidebar layout: hide sidebar and allow workspace to fill */
+    /* Collapsed sidebar layout: hide sidebar and allow workspace to fill  */
     .content-with-sidebars.sidebar-collapsed > *:nth-child(1) {
-      width: 100% !important;
-      max-width: 100% !important;
+            max-width: 100% !important;
     }
+
+
+      .content-with-sidebars.sidebar-collapsed > *:nth-child(1) {
+        flex-grow: 1 !important;
+      }
        /* 
     .content-with-sidebars.sidebar-collapsed > *:nth-child(2) {
       width: 0 !important;
@@ -307,3 +323,20 @@
       align-items: center;
       justify-content: center;
     }
+
+.zoom-controls button {
+  display: block;
+  bottom: 0;
+  margin-bottom: 5px;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Public Sans', sans-serif;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.zoom-controls button:hover {
+  background: #f0f0f0;
+}
