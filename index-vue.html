@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Political Buttons Image Workspace - Vue.js</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Public+Sans:ital,wght@0,100..900;1,100..900&family=Syne:wght@400..800&display=swap" rel="stylesheet"> <link rel="stylesheet" href="vue-style.css">
+  <script>
+    // Set theme immediately to prevent flash
+    (function() {
+      const isDark = localStorage.getItem('darkMode') === 'true';
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    })();
+  </script>
+  <style>
+    /* Hide Vue content until loaded */
+    [v-cloak] {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" v-cloak>
+    <button
+      class="workspace-toggle"
+      @click="toggleWorkspaceBackground"
+      :title="isWorkspaceDark ? 'Switch to Light Workspace' : 'Switch to Dark Workspace'"
+    >
+      {{ isWorkspaceDark ? 'Show HKS' : 'Hide HKS' }}
+    </button>
+
+    <button
+      class="theme-toggle"
+      @click="toggleTheme"
+      :title="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+    >
+      {{ isDarkMode ? '☀️' : '🌙' }}
+    </button>
+
+    <div class="container">
+      <div
+        id="workspaceColumns"
+        class="content-with-sidebars"
+        :class="{ 'sidebar-collapsed': sidebarCollapsed }"
+      >
+        <!-- Sidebar -->
+        <div
+          id="sidebar"
+          class="sticky"
+          :class="{ collapsed: sidebarCollapsed }"
+        >
+          <div class="sidebar">
+            <div class="options">
+              <h2>Filter by Color</h2>
+              <div class="color-filters">
+                <label>
+                  Color:
+                  <input
+                    type="color"
+                    v-model="colorFilter"
+                    @input="onColorPickerChange"
+                    @change="onColorPickerChange"
+                  >
+                </label>
+
+                <input
+                  v-model="searchHex"
+                  class="search-bar"
+                  placeholder="Hex (e.g. #rrggbb)"
+                >
+
+                <label style="display:block">
+                  Tolerance:
+                  <input
+                    type="range"
+                    v-model="tolerance"
+                    min="0"
+                    max="255"
+                  >
+                  <span>{{ tolerance }}</span>
+                </label>
+              </div>
+
+              <div class="options">
+                <h2>Titles</h2>
+                <input
+                  v-model="searchTitle"
+                  placeholder="Search titles..."
+                  class="search-bar"
+                >
+              </div>
+
+              <div class="options">
+                <h2>Metadata</h2>
+                <input
+                  v-model="searchMetadata"
+                  placeholder="Search person, party, office..."
+                  class="search-bar"
+                >
+              </div>
+            </div>
+
+            <div class="options">
+              <h2>Show only decades:</h2>
+              <div class="decade-dropdown-container">
+                <select
+                  multiple
+                  v-model="selectedDecades"
+                  class="decade-dropdown"
+                  :size="Math.min(6, availableDecades.length)"
+                >
+                  <option
+                    v-for="decade in availableDecades"
+                    :key="decade.value"
+                    :value="decade.value"
+                  >
+                    {{ decade.value }}s ({{ decade.filteredCount }})
+                  </option>
+                </select>
+              </div>
+
+              <div class="options decade-controls">
+                <button @click="selectAllDecades" class="decade-btn">Select All Decades</button>
+                <button @click="deselectAllDecades" class="decade-btn">Clear Decades</button>
+              </div>
+            </div>
+
+            <div class="options">
+              <button @click="clearAllFilters" class="clear">Clear all Filters</button>
+            </div>
+          </div>
+        </div>
+
+                <!-- Workspace Container -->
+        <div id="workspaceContainer" class="sticky">
+          <div class="right-controls">
+            <button
+              id="toggleTopBar"
+              class="sidebar-toggle"
+              :class="{ 'fullscreen-exit': isFullscreen }"
+              @click="isFullscreen ? exitFullscreen() : toggleSidebar()"
+            >
+              {{ isFullscreen ? 'Exit Full Screen' : (sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar') }}
+            </button>
+            <button @click="zoomOut" class="ctrl-btn">Zoom Out (-)</button>
+            
+            <div class="current-zoom">{{ Math.round(zoom * 100) }}%</div>
+           
+            <button @click="zoomIn" class="ctrl-btn">Zoom In (+)</button>
+            <button @click="resetZoom" class="ctrl-btn">Reset View</button>
+           
+     
+          </div>
+
+          <div
+            class="workspace"
+            ref="workspace"
+            :style="{ background: isWorkspaceDark ? 'var(--workspace-label)' : 'var(--workspace-bg)' }"
+            @dragover.prevent
+            @drop="handleDrop"
+            @mousedown="startPanning"
+            @wheel.prevent="handleWheel"
+          >
+            <div
+              ref="workspaceInner"
+              :style="workspaceTransform"
+              style="position:relative; width:1200px; height:800px; overflow:visible;"
+            >
+              <div
+                style="position:absolute; left:0; top:0; width:1200px; height:800px; pointer-events:none;"
+              >
+                <span id="workspaceLabel">HKS</span>
+              </div>
+
+              <div
+                v-for="item in workspaceItems"
+                :key="item.id"
+                class="workspace-card"
+                :style="{
+                  position: 'absolute',
+                  left: item.x + 'px',
+                  top: item.y + 'px',
+                  zIndex: item.dragging ? 1000 : 'auto'
+                }"
+                @mousedown="startDragging($event, item)"
+              >
+                <img
+                  :src="item.url"
+                  :alt="item.name"
+                  :style="{ width: (item.width * 5) + 'px' }"
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="view-bar">
+            <button @click="showWorkspaceList = true">View Workspace as List</button>
+            <button @click="toggleFullscreen" class="fullscreen">
+              {{ isFullscreen ? 'Exit Full Screen' : 'View Workspace Full Screen' }}
+            </button>
+            <button @click="showInstructions = true">Instructions</button>
+          </div>
+            <div class="workspace-controls">
+            Workspace:
+            <button @click="saveWorkspace" :disabled="workspaceItems.length === 0">Save</button>
+            <button @click="loadWorkspace" :disabled="!hasSavedWorkspace">Restore</button>
+              <button @click="clearWorkspace" :disabled="workspaceItems.length === 0" class="clear">Clear</button>
+            <button @click="downloadWorkspace" :disabled="workspaceItems.length === 0">Download</button>
+            <input
+              ref="fileInput"
+              type="file"
+              accept=".json"
+              @change="uploadWorkspace"
+              style="display: none;"
+            >
+            <button @click="$refs.fileInput.click()">Import</button>
+             <button
+              @click="downloadWorkspacePNG"
+              :disabled="workspaceItems.length === 0"
+              class="ctrl-btn"
+              title="Download workspace as ultra high-resolution PNG with crisp button details"
+            >🖼️ PNG
+            </button>
+            </div>
+ 
+        </div>
+
+        <!-- Image Grid -->
+        <div id="gridContainer">
+          <div v-if="!loading && !error && hasActiveFilters" class="result-count">
+            {{ filteredImages.length }} / {{ images.length }} results
+          </div>
+
+          <div v-if="loading" class="loading">
+            Loading images...
+          </div>
+
+          <div v-else-if="error" class="error">
+            {{ error }}
+          </div>
+
+          <div v-else-if="!hasActiveFilters" class="start-message">
+            Select a color or filter to start
+          </div>
+
+          <div v-else class="image-grid">
+            <div
+              v-for="img in filteredImages"
+              :key="img.id"
+              class="image-card"
+              draggable="true"
+              @dragstart="handleDragStart($event, img)"
+              @click="addToWorkspace(img, 200, 300)"
+            >
+              <img :src="img.url" :alt="img.name">
+
+              <div class="swatches">
+                <span
+                  v-for="(color, index) in img.colors.slice(0, 5)"
+                  :key="index"
+                  :style="{
+                    display: 'inline-block',
+                    width: '18px',
+                    height: '18px',
+                    background: color.hex,
+                    marginRight: '6px',
+                    border: '1px solid #fff'
+                  }"
+                  :title="`${color.hex} — ${Math.round(color.proportion * 100)}%`"
+                ></span>
+              </div>
+
+              <div
+                style="margin-top: 6px; cursor: pointer;"
+                @click.stop="openImageModal(img)"
+              >
+                {{ img.name }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workspace List Modal -->
+      <transition name="fade">
+        <div v-if="showWorkspaceList" class="modal" @click.self="showWorkspaceList = false">
+          <div class="modal-content">
+            <h3>Workspace Items</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Thumbnail</th>
+                  <th>Title</th>
+                  <th>ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="workspaceItems.length === 0">
+                  <td colspan="3">No items in workspace</td>
+                </tr>
+                <tr v-for="item in workspaceItems" :key="item.id">
+                  <td>
+                    <img :src="item.url" style="width: 60px; height: auto;">
+                  </td>
+                  <td>{{ item.name }}</td>
+                  <td>{{ item.id }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <button @click="downloadCSV" style="margin-top: 10px;">Download CSV</button>
+            <button @click="showWorkspaceList = false" style="margin-top: 10px;">Close</button>
+          </div>
+        </div>
+      </transition>
+
+      <!-- Instructions Modal -->
+      <transition name="fade">
+        <div v-if="showInstructions" class="modal" @click.self="showInstructions = false">
+          <div class="modal-content">
+            <h3>Instructions</h3>
+            <p>Use the color filters, decade filters, and search bar to find images by their dominant colors, creation decade, and titles.</p>
+            <p>Click on an image to add it to the workspace. You can also drag and drop images into the workspace.</p>
+            <p>In the workspace, you can drag images around. To remove an image, drag it outside the workspace area.</p>
+            <p>You can pan the workspace by clicking and dragging on empty space.</p>
+            <p><span class="highlight">View Workspace Full Screen</span> Expand the workspace to full screen for easier arrangement of images.</p>
+            <p><span class="highlight">View Workspace as List</span>: See a tabular view of all images currently in the workspace, with an option to download the list as a CSV file.</p>
+            <p><span class="highlight">Theme Toggle</span>: Use the button in the top-right corner to switch between light and dark modes.</p>
+            <button @click="showInstructions = false" style="margin-top: 10px;">Close</button>
+          </div>
+        </div>
+      </transition>
+
+      <!-- Image Detail Modal -->
+      <transition name="fade">
+        <div v-if="showImageModal" class="modal" @click.self="showImageModal = false">
+          <div class="modal-content">
+            <img :src="selectedImage?.url" style="max-width: 100%; height: auto; display: block; margin-bottom: 10px;">
+
+            <div v-if="selectedImage" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+              <div style="margin-bottom: 6px;"><strong>Title:</strong> {{ selectedImage.name || 'N/A' }}</div>
+              <div style="margin-bottom: 6px;"><strong>Earliest Date:</strong> {{ selectedImage.earliest_date || 'N/A' }}</div>
+              <div style="margin-bottom: 6px;"><strong>Person:</strong> {{ selectedImage.person || 'N/A' }}</div>
+              <div style="margin-bottom: 6px;"><strong>Party:</strong> {{ selectedImage.party || 'N/A' }}</div>
+              <div style="margin-bottom: 6px;"><strong>Office:</strong> {{ selectedImage.office || 'N/A' }}</div>
+            </div>
+
+            <div style="margin-bottom: 6px; font-weight: bold;">Colors:</div>
+
+            <div v-if="selectedImage">
+              <div
+                v-for="color in selectedImage.colors"
+                :key="color.hex"
+                style="margin-bottom: 6px;"
+              >
+                <span
+                  :style="{
+                    display: 'inline-block',
+                    width: '24px',
+                    height: '24px',
+                    background: color.hex,
+                    border: '1px solid #000',
+                    verticalAlign: 'middle',
+                    marginRight: '8px'
+                  }"
+                ></span>
+                <strong>{{ color.hex }}</strong> — {{ Math.round(color.proportion * 100) }}%
+              </div>
+            </div>
+
+            <button @click="showImageModal = false" style="margin-top: 10px;text-align:right">Close</button>
+          </div>
+        </div>
+      </transition>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <script src="app.js"></script>
+
+</body>
+</html>
