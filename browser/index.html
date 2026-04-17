@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HKS Political Buttons Browser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .stats {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .card-image {
+            width: 100%;
+            height: 300px;
+            background-color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .card-image.loading {
+            color: #999;
+        }
+
+        .card-content {
+            padding: 16px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .card-metadata {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .card-metadata strong {
+            color: #444;
+        }
+
+        .card-description {
+            font-size: 13px;
+            color: #777;
+            margin-top: 12px;
+            line-height: 1.4;
+        }
+
+        .loading-message {
+            text-align: center;
+            color: #666;
+            font-size: 18px;
+            margin-top: 50px;
+        }
+
+        .error-message {
+            text-align: center;
+            color: #d32f2f;
+            font-size: 16px;
+            margin-top: 50px;
+            padding: 20px;
+            background: #ffebee;
+            border-radius: 8px;
+            max-width: 600px;
+            margin: 50px auto;
+        }
+
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 1400px;
+            margin: 0 auto 30px;
+        }
+
+        .filters-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .filters-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .clear-filters {
+            padding: 6px 12px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .clear-filters:hover {
+            background: #e0e0e0;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .filter-select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #666;
+        }
+
+        .search-box {
+            margin-bottom: 15px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #666;
+        }
+
+        .search-input::placeholder {
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>HKS Political Buttons Collection</h1>
+        <div class="stats" id="stats">Loading...</div>
+    </div>
+
+    <div class="filters">
+        <div class="filters-header">
+            <div class="filters-title">Filters</div>
+            <button class="clear-filters" onclick="clearFilters()">Clear All</button>
+        </div>
+        <div class="search-box">
+            <input type="text" id="search-input" class="search-input" placeholder="Search descriptions..." oninput="applyFilters()">
+        </div>
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label class="filter-label">Person</label>
+                <select class="filter-select" id="filter-person" onchange="applyFilters()">
+                    <option value="">All</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Year</label>
+                <select class="filter-select" id="filter-year" onchange="applyFilters()">
+                    <option value="">All</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Party</label>
+                <select class="filter-select" id="filter-party" onchange="applyFilters()">
+                    <option value="">All</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Office</label>
+                <select class="filter-select" id="filter-office" onchange="applyFilters()">
+                    <option value="">All</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">State</label>
+                <select class="filter-select" id="filter-state" onchange="applyFilters()">
+                    <option value="">All</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div id="container">
+        <div class="loading-message">Loading collection...</div>
+    </div>
+
+    <script>
+        const IMAGE_URL_TEMPLATE = 'https://iiif-cache.digitalhumanities.fas.harvard.edu/iiif/thumb?url=https://ids.lib.harvard.edu/ids/iiif/{image_id}/full/,300/0/default.jpg';
+        let allButtons = [];
+
+        async function loadButtons() {
+            const container = document.getElementById('container');
+            const stats = document.getElementById('stats');
+
+            try {
+                // Fetch merged buttons file
+                const res = await fetch('data/merged_buttons_all_w_names.json');
+                allButtons = await res.json();
+
+                // Sort by title
+                allButtons.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
+                // Build filter options
+                buildFilterOptions();
+
+                // Initial render
+                renderButtons(allButtons);
+
+            } catch (error) {
+                console.error('Error loading buttons:', error);
+                container.innerHTML = `<div class="error-message">Error loading collection: ${error.message}</div>`;
+            }
+        }
+
+        function buildFilterOptions() {
+            const fields = ['person', 'year', 'party', 'office', 'state'];
+
+            fields.forEach(field => {
+                const select = document.getElementById(`filter-${field}`);
+                const values = new Set();
+
+                allButtons.forEach(button => {
+                    if (button[field] && button[field] !== null) {
+                        values.add(button[field]);
+                    }
+                });
+
+                // Add special options
+                const hasEmpty = allButtons.some(b => !b[field] || b[field] === null);
+                const hasFilled = allButtons.some(b => b[field] && b[field] !== null);
+
+                if (hasFilled) {
+                    const option = document.createElement('option');
+                    option.value = '__HAS_VALUE__';
+                    option.textContent = '✓ Has value';
+                    select.appendChild(option);
+                }
+
+                if (hasEmpty) {
+                    const option = document.createElement('option');
+                    option.value = '__IS_EMPTY__';
+                    option.textContent = '✗ Is empty';
+                    select.appendChild(option);
+                }
+
+                // Add separator if we have both special options and values
+                if ((hasFilled || hasEmpty) && values.size > 0) {
+                    const option = document.createElement('option');
+                    option.disabled = true;
+                    option.textContent = '──────────';
+                    select.appendChild(option);
+                }
+
+                // Add actual values sorted
+                Array.from(values).sort().forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        function applyFilters() {
+            const filters = {
+                person: document.getElementById('filter-person').value,
+                year: document.getElementById('filter-year').value,
+                party: document.getElementById('filter-party').value,
+                office: document.getElementById('filter-office').value,
+                state: document.getElementById('filter-state').value
+            };
+
+            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+
+            const filtered = allButtons.filter(button => {
+                // Apply field filters
+                for (const [field, filterValue] of Object.entries(filters)) {
+                    if (!filterValue) continue;
+
+                    if (filterValue === '__HAS_VALUE__') {
+                        if (!button[field] || button[field] === null) return false;
+                    } else if (filterValue === '__IS_EMPTY__') {
+                        if (button[field] && button[field] !== null) return false;
+                    } else {
+                        if (button[field] !== filterValue) return false;
+                    }
+                }
+
+                // Apply search filter
+                if (searchTerm) {
+                    const description = (button.description || '').toLowerCase();
+                    if (!description.includes(searchTerm)) return false;
+                }
+
+                return true;
+            });
+
+            renderButtons(filtered);
+        }
+
+        function clearFilters() {
+            document.getElementById('search-input').value = '';
+            ['person', 'year', 'party', 'office', 'state'].forEach(field => {
+                document.getElementById(`filter-${field}`).value = '';
+            });
+            renderButtons(allButtons);
+        }
+
+        function renderButtons(buttons) {
+            const container = document.getElementById('container');
+            const stats = document.getElementById('stats');
+
+            stats.textContent = `${buttons.length} of ${allButtons.length} items`;
+
+            container.innerHTML = '';
+            const grid = document.createElement('div');
+            grid.className = 'grid';
+
+            buttons.forEach(button => {
+                const card = createCard(button);
+                grid.appendChild(card);
+            });
+
+            container.appendChild(grid);
+        }
+
+        function createCard(data) {
+            const card = document.createElement('div');
+            card.className = 'card';
+
+            const imageUrl = IMAGE_URL_TEMPLATE.replace('{image_id}', data.image_id);
+
+            card.innerHTML = `
+                <div class="card-image loading">
+                    <img src="${imageUrl}" alt="${data.name || 'Political button'}"
+                         onload="this.parentElement.classList.remove('loading')"
+                         onerror="this.parentElement.innerHTML='Image unavailable'">
+                </div>
+                <div class="card-content">
+                    <div class="card-title">${data.name || 'Untitled'}</div>
+                    ${data.person ? `<div class="card-metadata"><strong>Person:</strong> ${data.person}</div>` : ''}
+                    ${data.year ? `<div class="card-metadata"><strong>Year:</strong> ${data.year}</div>` : ''}
+                    ${data.party ? `<div class="card-metadata"><strong>Party:</strong> ${data.party}</div>` : ''}
+                    ${data.office ? `<div class="card-metadata"><strong>Office:</strong> ${data.office}</div>` : ''}
+                    ${data.state ? `<div class="card-metadata"><strong>State:</strong> ${data.state}</div>` : ''}
+                    ${data.description ? `<div class="card-description">${data.description}</div>` : ''}
+                </div>
+            `;
+
+            return card;
+        }
+
+        // Load on page load
+        loadButtons();
+    </script>
+</body>
+</html>
